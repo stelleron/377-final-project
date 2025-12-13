@@ -37,6 +37,9 @@
 
             void add_chunk(DataChunk& chunk); // Uncompressed chunk
             void add_compressed_chunk(DataChunk& chunk); // Pre-compressed chunk
+            void flush(); // Write all chunks to file
+
+            const std::vector<DataChunk>& get_chunks() const { return chunks; }
     };
 
     // Implements Packr's functions
