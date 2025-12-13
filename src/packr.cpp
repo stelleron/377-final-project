@@ -48,7 +48,22 @@ void load_files_from_dir(std::string& path, std::vector<std::string>& files) {
     }
     else {
         std::cerr << "Error: Given invalid path! Path must be an existing directory" << std::endl;
+        return;
     }
+}
+
+/* class PackrFile */
+PackrFile::PackrFile(const std::string& path) {
+
+}
+
+PackrFile::~PackrFile() {
+    file.close();
+    if (file.is_open()) {
+        std::cerr << "ERROR: Unable to close file system." << std::endl;
+        exit(1);
+    }
+
 }
 
 /* class Packr */
@@ -58,7 +73,11 @@ void Packr::compress(std::string& in_path, std::string& out_path) {
     std::vector<std::string> files;
     load_files_from_dir(in_path, files);
 
+    // DEBUG: Print out files
     for (int i = 0; i < files.size(); i++) {
         std::cout << files[i] << std::endl;
     }
+
+    // Create a .packr file
+    PackrFile file(out_path);
 }
