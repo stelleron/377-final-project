@@ -8,20 +8,20 @@
     // Struct for the file header
     struct FileHeader {
         char version[16];
-        int chunk_count;
+        uint32_t chunk_count;
     };
 
     // Struct for every data header
     struct DataHeader {
         char alias[256];
-        int base_size;
-        int comp_size;
+        uint32_t base_size;
+        uint32_t comp_size;
     };
 
     // Struct to store chunks of data
     struct DataChunk {
         DataHeader header;
-        char* data;
+        std::vector<char> data;
     };
 
     // Implements an in-memory class for .packr files
@@ -34,12 +34,18 @@
         public:
             PackrFile(const std::string& path, bool new_file); // Load an existing .packr file or create a new one
             ~PackrFile();
+
+            void add_chunk(DataChunk& chunk); // Uncompressed chunk
+            void add_compressed_chunk(DataChunk& chunk); // Pre-compressed chunk
     };
 
     // Implements Packr's functions
     class Packr {
         public:
             // Single thread
+            static void archive(std::string& in_path, std::string& out_path); // Simply bundle files, don't decompress
+            static void unarchive(std::string& in_path, std::string& out_path);
+
             static void compress(std::string& in_path, std::string& out_path);
             static void decompress(std::string& in_path, std::string& out_path);
 
