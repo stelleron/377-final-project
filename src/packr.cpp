@@ -53,9 +53,27 @@ void load_files_from_dir(std::string& path, std::vector<std::string>& files) {
 }
 
 /* class PackrFile */
+/* =============== */
 PackrFile::PackrFile(const std::string& path) {
+    // Try opening existing file
+    file.open(path, std::ios::in | std::ios::out | std::ios::binary);
 
+    if (!file.is_open()) {
+        // File does not exist — create it
+        file.open(path, std::ios::out | std::ios::binary);
+        file.close();
+
+        // Reopen for read/write
+        file.open(path, std::ios::in | std::ios::out | std::ios::binary);
+
+        if (!file.is_open()) {
+            std::cerr << "ERROR: Unable to create file system.\n";
+        }
+    } else {
+        // File exists - read objects from it
+    }
 }
+
 
 PackrFile::~PackrFile() {
     file.close();
@@ -63,7 +81,6 @@ PackrFile::~PackrFile() {
         std::cerr << "ERROR: Unable to close file system." << std::endl;
         exit(1);
     }
-
 }
 
 /* class Packr */

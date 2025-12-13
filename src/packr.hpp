@@ -3,31 +3,33 @@
     #include <string>
     #include <fstream>
 
-    /* Macros */
-    // We use the first 8 chunks for storing the status of each block
-    // We use the next 8 chunks to store i-nodes
-    #define CHUNK_LIMIT 32768 // Total number of chunks
-    #define CHUNK_SIZE 4096 // Each chunk is 8 KiB
-    #define FREE_CHUNKS_LIST_SIZE CHUNK_LIMIT/CHUNK_SIZE
+    #define PACKR_VERSION "1.0.0"
 
-    #define INODE_SIZE 64 // Size of each i-node for calculations
-    #define INODE_LIST_SIZE 8 // Size in chunks
-    #define NUM_FILES CHUNK_SIZE/INODE_SIZE * INODE_LIST_SIZE // Number of files we can have
+    // Struct for the file header
+    struct FileHeader {
+        char version[16];
+        int chunk_count;
+    };
 
-    // Packr INode must be 64 bytes
-    // Meaning each file is max 72 KiB
-    struct PackrINode {
-        char name[16]; // 4*4 = 16 bytes
-        char ext[4]; // 4 bytes
-        int num_chunks; // 4 bytes
-        int chunk_pointers[9]; // 4*9 bytes = 36 bytes
-        int used; // 4 bytes
+    // Struct for every data header
+    struct DataHeader {
+        char alias[256];
+        int base_size;
+        int comp_size;
+    };
+
+    // Struct to store chunks of data
+    struct DataChunk {
+        DataHeader header;
+        char* data;
     };
 
     // Implements an in-memory class for .packr files
     class PackrFile {
         private:
             std::fstream file;
+            FileHeader header;
+            std::vector<DataChunk> chunks;
         public:
             PackrFile(const std::string& path); // Load an existing .packr file or create a new one
             ~PackrFile();
