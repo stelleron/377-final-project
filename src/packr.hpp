@@ -28,10 +28,11 @@
     class PackrFile {
         private:
             std::fstream file;
+            std::string file_path;
             FileHeader header;
             std::vector<DataChunk> chunks;
         public:
-            PackrFile(const std::string& path); // Load an existing .packr file or create a new one
+            PackrFile(const std::string& path, bool new_file); // Load an existing .packr file or create a new one
             ~PackrFile();
     };
 

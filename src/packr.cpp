@@ -48,30 +48,84 @@ void load_files_from_dir(std::string& path, std::vector<std::string>& files) {
     }
     else {
         std::cerr << "Error: Given invalid path! Path must be an existing directory" << std::endl;
-        return;
+        exit(1);
     }
 }
 
 /* class PackrFile */
 /* =============== */
-PackrFile::PackrFile(const std::string& path) {
-    // Try opening existing file
-    file.open(path, std::ios::in | std::ios::out | std::ios::binary);
+PackrFile::PackrFile(const std::string& path, bool new_file) {
+    // Store file path
+    this->file_path = path;
 
-    if (!file.is_open()) {
-        // File does not exist — create it
-        file.open(path, std::ios::out | std::ios::binary);
-        file.close();
+    // Check if the file exists
+    // We DONT'T want to open an existing file in certain circumstances, or accidentally flush an old file
+    bool exists = std::filesystem::exists(path);
 
-        // Reopen for read/write
+    // ERROR if file already exists and new_file = TRUE
+    if (new_file && exists) {
+        throw std::runtime_error(
+            "PackrFile error: file already exists: " + path);
+    }
+
+    if (!new_file && !exists) {
+        throw std::runtime_error(
+            "PackrFile error: file does not exist: " + path);
+    }
+
+    if (new_file) {
+        // Create new file (fails if exists, per check above)
+        std::ofstream create(path, std::ios::binary);
+        if (!create) {
+            throw std::runtime_error(
+                "PackrFile error: failed to create file: " + path);
+        }
+        create.close();
+
+        // Open for read/write
         file.open(path, std::ios::in | std::ios::out | std::ios::binary);
 
-        if (!file.is_open()) {
-            std::cerr << "ERROR: Unable to create file system.\n";
-        }
-    } else {
-        // File exists - read objects from it
+        // Initialize the header
+        std::memset(&header, 0, sizeof(FileHeader));
+        strcpy(header.version, PACKR_VERSION);
+        header.chunk_count = 0;
+
+        // Write the header
+        file.seekp(0, std::ios::beg);
+        file.write(reinterpret_cast<const char*>(&header), sizeof(FileHeader));
+        file.flush();
+
+        std::cout << "Created .packr file!" << std::endl;
     }
+    else {
+        // Read existing file
+        file.open(path, std::ios::in | std::ios::out | std::ios::binary);
+        if (!file.is_open()) {
+            throw std::runtime_error(
+                "PackrFile error: failed to open existing file: " + path);
+        }
+
+        // Read header
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char*>(&header), sizeof(FileHeader));
+
+        // Now read every chunk
+        chunks.resize(header.chunk_count);
+        std::cout << "Found " << header.chunk_count << " chunks. Loading them..." << std::endl;
+
+        for(int x = 0; x < header.chunk_count; x++) {
+            // First read the header
+            file.read(reinterpret_cast<char*>(&chunks[x].header), sizeof(chunks[x].header));
+            // Then the data
+            chunks[x].data = new char[chunks[x].header.comp_size];
+            file.read(chunks[x].data, chunks[x].header.comp_size);
+        }
+
+        std::cout << "Loaded all chunks!" << std::endl;
+    }
+
+    // Close file - we'll open it later for writing all our data
+    file.close();
 }
 
 
@@ -95,6 +149,9 @@ void Packr::compress(std::string& in_path, std::string& out_path) {
         std::cout << files[i] << std::endl;
     }
 
-    // Create a .packr file
-    PackrFile file(out_path);
+    // Create a new .packr file
+    PackrFile file(out_path, true);
+
+    // Now create each chunk
+
 }
