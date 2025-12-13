@@ -6,7 +6,7 @@ workspace "Multithreaded 7-Zip"
 project "exec"
    kind "ConsoleApp"
    language "C++"
-   cppdialect "C++11"
+   cppdialect "C++17"
    targetdir "build"
    objdir "build/obj/"
    files {"src/**.cpp"}

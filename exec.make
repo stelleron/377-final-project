@@ -49,13 +49,13 @@ ifeq ($(config),debug)
 OBJDIR = build/obj/Debug
 DEFINES += -DDEBUG -DENABLE_XENON_LOGGER
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++11
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++17
 
 else ifeq ($(config),release)
 OBJDIR = build/obj/Release
 DEFINES += -DNDEBUG
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++11
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++17
 
 endif
 
@@ -69,10 +69,10 @@ endif
 GENERATED :=
 OBJECTS :=
 
-GENERATED += $(OBJDIR)/datapak.o
-GENERATED += $(OBJDIR)/main.o
-OBJECTS += $(OBJDIR)/datapak.o
-OBJECTS += $(OBJDIR)/main.o
+GENERATED += $(OBJDIR)/packr.o
+GENERATED += $(OBJDIR)/tests.o
+OBJECTS += $(OBJDIR)/packr.o
+OBJECTS += $(OBJDIR)/tests.o
 
 # Rules
 # #############################################
@@ -136,10 +136,10 @@ endif
 # File Rules
 # #############################################
 
-$(OBJDIR)/datapak.o: src/datapak.cpp
+$(OBJDIR)/packr.o: src/packr.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/main.o: src/main.cpp
+$(OBJDIR)/tests.o: src/tests.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
