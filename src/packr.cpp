@@ -5,6 +5,12 @@
 #include <fstream>
 #include <sstream>
 
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <condition_variable>
+#include <atomic>
+
 #define SINFL_IMPLEMENTATION
 #define SDEFL_IMPLEMENTATION
 #include "sinfl.h"
@@ -61,16 +67,15 @@ void load_files_from_dir(std::string& path, std::vector<std::string>& files) {
 
 // Compression function
 std::vector<char> compress_data(const char* data, uint32_t size, uint32_t& comp_size) {
-    sdefl ctx{};
+    thread_local sdefl ctx{};
     int bound = sdefl_bound(size);
 
     std::vector<char> out(bound);
     comp_size = sdeflate(&ctx, out.data(), data, size, COMP_QUALITY);
 
-    out.resize(comp_size); // shrink to actual size
+    out.resize(comp_size);
     return out;
 }
-
 
 // Decompression function
 std::vector<char> decompress_data(const char* comp_data, uint32_t comp_size, uint32_t expected_size)
@@ -229,11 +234,17 @@ void Packr::decompress(std::string& in_path, std::string& out_path) {
         std::string alias(chunk.header.alias);
         
         // Extract just the filename (remove any path prefix)
-        std::filesystem::path original_path(alias);
-        std::string filename = original_path.filename().string();
+        std::filesystem::path relative_path(alias);
 
-        // Build output path
-        std::filesystem::path output_file = std::filesystem::path(out_path) / filename;
+        // If alias is absolute, strip root to avoid writing outside out_path
+        if (relative_path.is_absolute()) {
+            relative_path = relative_path.lexically_relative(
+                relative_path.root_path());
+        }
+
+        std::filesystem::path output_file =
+            std::filesystem::path(out_path) / relative_path;
+
 
         // Create parent directories if needed
         std::filesystem::create_directories(output_file.parent_path());
@@ -285,11 +296,17 @@ void Packr::unarchive(std::string& in_path, std::string& out_path) {
         std::string alias(chunk.header.alias);
         
         // Extract just the filename (remove any path prefix)
-        std::filesystem::path original_path(alias);
-        std::string filename = original_path.filename().string();
+        std::filesystem::path relative_path(alias);
 
-        // Build output path
-        std::filesystem::path output_file = std::filesystem::path(out_path) / filename;
+        // If alias is absolute, strip root to avoid writing outside out_path
+        if (relative_path.is_absolute()) {
+            relative_path = relative_path.lexically_relative(
+                relative_path.root_path());
+        }
+
+        std::filesystem::path output_file =
+            std::filesystem::path(out_path) / relative_path;
+
 
         // Create parent directories if needed
         std::filesystem::create_directories(output_file.parent_path());
@@ -369,11 +386,6 @@ void Packr::compress(std::string& in_path, std::string& out_path) {
     std::vector<std::string> files;
     load_files_from_dir(in_path, files);
 
-    // DEBUG: Print out files
-    for (int i = 0; i < files.size(); i++) {
-        std::cout << files[i] << std::endl;
-    }
-
     // Create a new .packr file
     PackrFile file(out_path, true);
 
@@ -415,5 +427,86 @@ void Packr::compress(std::string& in_path, std::string& out_path) {
     }
 
     // Write all chunks to disk
+    file.flush();
+}
+
+void Packr::compress_parallel(std::string& in_path,
+                              std::string& out_path,
+                              int num_threads) {
+    // First load directories recursively
+    std::vector<std::string> files;
+    load_files_from_dir(in_path, files);
+
+    // Create a new .packr file
+    PackrFile file(out_path, true);
+
+    // Push all files into queue
+    std::queue<std::string> work_queue;
+    for (auto& f : files) work_queue.push(f);
+
+    // Mutexes for locking critical section
+    std::mutex queue_mutex;
+    std::mutex packr_mutex;
+    std::atomic<bool> done{false};
+
+    // Worker function
+    auto worker = [&]() {
+        while (true) {
+            std::string file_path;
+            // (CRITICAL) Remove file name from queue
+            {
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                if (work_queue.empty())
+                    return;
+                file_path = work_queue.front();
+                work_queue.pop();
+            }
+
+            // Load file data
+            std::ifstream in(file_path, std::ios::binary | std::ios::ate);
+            if (!in.is_open()) continue;
+
+            std::streamsize size = in.tellg();
+            in.seekg(0, std::ios::beg);
+
+            // Directly compress chunk inside memory
+            DataChunk chunk;
+            std::memset(chunk.header.alias, 0, sizeof(chunk.header.alias));
+            std::strncpy(chunk.header.alias, file_path.c_str(),
+                        sizeof(chunk.header.alias) - 1);
+
+            chunk.header.base_size = static_cast<uint32_t>(size);
+            chunk.header.comp_size = static_cast<uint32_t>(size);
+            chunk.data.resize(size);
+
+            if (!in.read(chunk.data.data(), size)) continue;
+
+            chunk.data = compress_data(
+                chunk.data.data(),
+                chunk.header.base_size,
+                chunk.header.comp_size
+            );
+
+            // (CRITICAL) Add compressed chunk back to files
+            {
+                std::lock_guard<std::mutex> lock(packr_mutex);
+                file.add_compressed_chunk(chunk);
+            }
+        }
+    };
+
+
+    // Spawn all threads
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; i++) {
+        threads.emplace_back(worker);
+    }
+
+    // Reap all threads
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    // Write to disk
     file.flush();
 }
