@@ -43,4 +43,13 @@ int main() {
     time_run([&] {
         Packr::compress_parallel(in_path, p10_path, 10);
     }, "Parallel (10 threads)");
+
+
+    std::string out_decomp_seq_path = "test/decompressed_seq";
+    std::string out_decomp_p5_path = "test/decompressed_p5";
+    std::string out_decomp_p10_path = "test/decompressed_p10";
+
+    Packr::decompress(out_comp_path, out_decomp_seq_path);
+    Packr::decompress(out_comp_path, out_decomp_p5_path);
+    Packr::decompress(out_comp_path, out_decomp_p10_path);
 }
