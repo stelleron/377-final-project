@@ -431,8 +431,6 @@ void Packr::decompress(std::string& in_path, std::string& out_path) {
 
         out.write(decompressed.data(), decompressed.size());
         out.close();
-
-        std::cout << "Extracted: " << output_file << " (" << decompressed.size() << " bytes)" << std::endl;
     }
 
     std::cout << "Decompression complete!" << std::endl;
@@ -473,8 +471,6 @@ void Packr::unarchive(std::string& in_path, std::string& out_path) {
 
         out.write(chunk.data.data(), chunk.header.base_size);
         out.close();
-
-        std::cout << "Extracted: " << output_file << " (" << chunk.header.base_size << " bytes)" << std::endl;
     }
 
     std::cout << "Unarchive complete!" << std::endl;

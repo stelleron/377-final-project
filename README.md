@@ -98,6 +98,28 @@ We also compared single vs parallel decompression times:
 |10 Threads| 0.0583 s |
 
 From this we can clearly see the benefits of using compression for file packaging, and using a multithreaded approach for faster compression/decompression.
+
+Admittedly our test case is a bit simple, so we tested against a real world directory structure you would compress. I cloned the open source Raylib project linked [here](https://github.com/raysan5/raylib), and tested our algorithm against this directory. Cloning this repository requires the usage of a compression algorithm like this, so it makes for a useful real-world test.
+
+|  | Memory Usage  |
+|--|--|
+|Archived| 552.8 MB|
+|Compressed| 478.3 MB  |
+
+|  |  Compression Speed |
+|--|--|
+|Single Thread| 62.76 s|
+|5 Threads| 53.4 s  |
+|10 Threads| 52.74 s |
+
+|  |  Decompression Speed |
+|--|--|
+|Single Thread| 21.58 s|
+|5 Threads| 19.50 s  |
+|10 Threads| 19.24 s |
+
+Admittedly the gains are less optimized, but there is definitely an improvement from using compression and multithreading.
+
 ###  Instructions
 You can run the program named `exec` inside the `build/` folder. If it doesn't work, you can call:
 - `make clean`
