@@ -80,6 +80,7 @@ We created a folder of 14x 1MB files made up of the repeated message "This is re
 |--|--|
 |Archived| 14.7 MB|
 |Compressed| 48 KB  |
+
 When we unarchived or decompressed the folder, we got back our data exactly with full accuracy.
 
 We also tested single compression vs parallel compression time on 5 and 10 threads for the following performance (rounded to 3 d.p):
