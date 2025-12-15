@@ -75,7 +75,28 @@ We can divide these algorithms into four categories: single threaded packaging, 
 4. Create worker threads to execute the worker function we set up.
 5. Join each thread.
 ###  Results
-In general,
+We created a folder of 14x 1MB files made up of the repeated message "This is repetitive test data for compression testing." This was done in order to test the effectiveness of our algorithm. We also placed 4 files in a separate folder to test our decompression functions and ensure they output the correct directory structure. Between our archive function and our compression function, we had the following distance in memory.
+|  | Memory Usage  |
+|--|--|
+|Archived| 14.7 MB|
+|Compressed| 48 KB  |
+When we unarchived or decompressed the folder, we got back our data exactly with full accuracy.
+
+We also tested single compression vs parallel compression time on 5 and 10 threads for the following performance (rounded to 3 d.p):
+|  |  Compression Speed |
+|--|--|
+|Single Thread| 0.538 s|
+|5 Threads| 0.135 s  |
+|10 Threads| 0.0813 s |
+
+We also compared single vs parallel decompression times:
+|  |  Decompression Speed |
+|--|--|
+|Single Thread| 0.249 s|
+|5 Threads| 0.0721 s  |
+|10 Threads| 0.0583 s |
+
+From this we can clearly see the benefits of using compression for file packaging, and using a multithreaded approach for faster compression/decompression.
 ###  Instructions
 You can run the program named `exec` inside the `build/` folder. If it doesn't work, you can call:
 - `make clean`
