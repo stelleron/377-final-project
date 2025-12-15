@@ -18,19 +18,12 @@
 
 #define COMP_QUALITY 8
 
-
-/* Helper datatypes */
-/* ================ */
-
 // For path types
 enum PathType {
     FILE_PATH = 0,
     DIR_PATH,
     UNKNOWN_PATH,
 };
-
-/* Helper functions */
-/* ================ */
 
 // Check if a given path leads to a file or a directory
 PathType get_path_type(std::string& path) {
@@ -92,17 +85,14 @@ std::vector<char> decompress_data(const char* comp_data, uint32_t comp_size, uin
 }
 
 
-/* class PackrFile */
-/* =============== */
 PackrFile::PackrFile(const std::string& path, bool new_file) {
     // Store file path
     this->file_path = path;
 
     // Check if the file exists
-    // We DONT'T want to open an existing file in certain circumstances, or accidentally flush an old file
     bool exists = std::filesystem::exists(path);
 
-    // ERROR if file already exists and new_file = TRUE
+    // err if file already exists and new_file is true
     if (new_file && exists) {
         throw std::runtime_error(
             "PackrFile error: file already exists: " + path);
@@ -114,7 +104,7 @@ PackrFile::PackrFile(const std::string& path, bool new_file) {
     }
 
     if (new_file) {
-        // Create new file (fails if exists, per check above)
+        // Create new file
         std::ofstream create(path, std::ios::binary);
         if (!create) {
             throw std::runtime_error(
@@ -164,7 +154,6 @@ PackrFile::PackrFile(const std::string& path, bool new_file) {
         std::cout << "Loaded all chunks!" << std::endl;
     }
 
-    // Close file - we'll open it later for writing all our data
     file.close();
 }
 
@@ -188,23 +177,16 @@ void PackrFile::add_compressed_chunk(DataChunk& chunk) {
 }
 
 void PackrFile::flush() {
-    // Open file for writing
     file.open(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!file.is_open()) {
         throw std::runtime_error("PackrFile error: failed to open file for writing: " + file_path);
     }
-
-    // Update header with current chunk count
     header.chunk_count = static_cast<uint32_t>(chunks.size());
 
-    // Write the header
     file.write(reinterpret_cast<const char*>(&header), sizeof(FileHeader));
 
-    // Write each chunk
     for (const auto& chunk : chunks) {
-        // Write chunk header
         file.write(reinterpret_cast<const char*>(&chunk.header), sizeof(DataHeader));
-        // Write chunk data
         file.write(chunk.data.data(), chunk.header.comp_size);
     }
 
@@ -214,18 +196,16 @@ void PackrFile::flush() {
     std::cout << "Wrote " << chunks.size() << " chunks to " << file_path << std::endl;
 }
 
-/* class Packr */
-/* =========== */
 
 void Packr::archive(std::string& in_path, std::string& out_path) {
-    // First load directories recursively
+    // load directories recursively
     std::vector<std::string> files;
     load_files_from_dir(in_path, files);
 
-    // DEBUG: Print out files
-    for (int i = 0; i < files.size(); i++) {
-        std::cout << files[i] << std::endl;
-    }
+    //debug
+    // for (int i = 0; i < files.size(); i++) {
+    //     std::cout << files[i] << std::endl;
+    // }
 
     // Create a new .packr file
     PackrFile file(out_path, true);
@@ -272,7 +252,7 @@ void Packr::archive(std::string& in_path, std::string& out_path) {
 }
 
 void Packr::compress(std::string& in_path, std::string& out_path) {
-    // First load directories recursively
+    // load directories recursively
     std::vector<std::string> files;
     load_files_from_dir(in_path, files);
 
@@ -377,7 +357,7 @@ void Packr::compress_parallel(std::string& in_path,
                 chunk.header.comp_size
             );
 
-            // (CRITICAL) Add compressed chunk back to files
+            // Add compressed chunk back to files
             {
                 std::lock_guard<std::mutex> lock(packr_mutex);
                 file.add_compressed_chunk(chunk);
@@ -402,22 +382,17 @@ void Packr::compress_parallel(std::string& in_path,
 }
 
 void Packr::decompress(std::string& in_path, std::string& out_path) {
-    // Open existing .packr file
     PackrFile packr_file(in_path, false);
 
-    // Create output directory if it doesn't exist
     std::filesystem::create_directories(out_path);
 
-    // Get all chunks from the packr file
     const auto& chunks = packr_file.get_chunks();
 
     std::cout << "Decompressing " << chunks.size() << " files..." << std::endl;
 
     for (const auto& chunk : chunks) {
-        // Get the original filename from alias
         std::string alias(chunk.header.alias);
 
-        // Extract just the filename (remove any path prefix)
         std::filesystem::path relative_path(alias);
 
         // If alias is absolute, strip root to avoid writing outside out_path
@@ -443,7 +418,7 @@ void Packr::decompress(std::string& in_path, std::string& out_path) {
                 chunk.header.base_size
             );
         } else {
-            // Data is not compressed (from archive())
+            // Data is not compressed
             decompressed = chunk.data;
         }
 
@@ -464,22 +439,17 @@ void Packr::decompress(std::string& in_path, std::string& out_path) {
 }
 
 void Packr::unarchive(std::string& in_path, std::string& out_path) {
-    // Open existing .packr file
     PackrFile packr_file(in_path, false);
 
-    // Create output directory if it doesn't exist
     std::filesystem::create_directories(out_path);
 
-    // Get all chunks from the packr file
     const auto& chunks = packr_file.get_chunks();
 
     std::cout << "Unarchiving " << chunks.size() << " files..." << std::endl;
 
     for (const auto& chunk : chunks) {
-        // Get the original filename from alias
         std::string alias(chunk.header.alias);
 
-        // Extract just the filename (remove any path prefix)
         std::filesystem::path relative_path(alias);
 
         // If alias is absolute, strip root to avoid writing outside out_path
@@ -492,7 +462,6 @@ void Packr::unarchive(std::string& in_path, std::string& out_path) {
             std::filesystem::path(out_path) / relative_path;
 
 
-        // Create parent directories if needed
         std::filesystem::create_directories(output_file.parent_path());
 
         // Write data directly (no decompression needed for archived files)
@@ -541,7 +510,7 @@ void Packr::decompress_parallel(std::string& in_path,
         while (true) {
             size_t chunk_idx;
 
-            // (CRITICAL) Get next chunk index from queue
+            //Get next chunk index from queue
             {
                 std::lock_guard<std::mutex> lock(queue_mutex);
                 if (work_queue.empty())
@@ -552,10 +521,8 @@ void Packr::decompress_parallel(std::string& in_path,
 
             const auto& chunk = chunks[chunk_idx];
 
-            // Get the original filename from alias
             std::string alias(chunk.header.alias);
             
-            // Extract just the filename (remove any path prefix)
             std::filesystem::path original_path(alias);
             std::string filename = original_path.filename().string();
 
