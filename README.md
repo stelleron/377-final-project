@@ -38,7 +38,7 @@ We can divide these algorithms into four categories: single threaded packaging, 
 2. Create an instance of the `Packr` class. This class object is used to manage each file's data, and store headers for each file chunk and for the .packr file.
 3. Read each file's contents and store to a chunk.
 4. Add a header to each chunk that stores metadata for loading it.
-5. (COMPRESS) Compress the chunk using the open source DEFLATE algorithm.
+5. (COMPRESS ONLY) Compress the chunk using the open source DEFLATE algorithm.
 6. Add the chunk to the `Packr` object.
 7. Flush the `Packr` object's contents to disk.
 
@@ -58,9 +58,24 @@ We can divide these algorithms into four categories: single threaded packaging, 
 7. Flush the `Packr` object's contents to disk.
 
 #### Single Threaded Unpackaging
-1.
+1. Open the `.packr` file. The `Packr` object automatically loads each chunk from the file by going through each header.
+2. Create output directory if it doesn't exist.
+3. Create a file for each file in the directory. If that file is inside a directory, create a directory for it.
+4. (DECOMPRESS ONLY) Decompress each chunk.
+5. Write each chunk to their respective files.
 
+#### Multi Threaded Unpacking
+1. Open the `.packr` file. The `Packr` object automatically loads each chunk from the file by going through each header.
+2. Create output directory if it doesn't exist.
+3. Create a worker function that does the following:
+- (CRITICAL) Get next chunk index from queue
+- Create a file for each file in the directory. If that file is inside a directory, create a directory for it.
+- Decompress each chunk.
+- Write each chunk to their respective files.
+4. Create worker threads to execute the worker function we set up.
+5. Join each thread.
 ###  Results
+In general,
 ###  Instructions
 You can run the program named `exec` inside the `build/` folder. If it doesn't work, you can call:
 - `make clean`

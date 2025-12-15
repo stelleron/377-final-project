@@ -217,116 +217,6 @@ void PackrFile::flush() {
 /* class Packr */
 /* =========== */
 
-void Packr::decompress(std::string& in_path, std::string& out_path) {
-    // Open existing .packr file
-    PackrFile packr_file(in_path, false);
-
-    // Create output directory if it doesn't exist
-    std::filesystem::create_directories(out_path);
-
-    // Get all chunks from the packr file
-    const auto& chunks = packr_file.get_chunks();
-
-    std::cout << "Decompressing " << chunks.size() << " files..." << std::endl;
-
-    for (const auto& chunk : chunks) {
-        // Get the original filename from alias
-        std::string alias(chunk.header.alias);
-        
-        // Extract just the filename (remove any path prefix)
-        std::filesystem::path relative_path(alias);
-
-        // If alias is absolute, strip root to avoid writing outside out_path
-        if (relative_path.is_absolute()) {
-            relative_path = relative_path.lexically_relative(
-                relative_path.root_path());
-        }
-
-        std::filesystem::path output_file =
-            std::filesystem::path(out_path) / relative_path;
-
-
-        // Create parent directories if needed
-        std::filesystem::create_directories(output_file.parent_path());
-
-        // Decompress the data
-        std::vector<char> decompressed;
-        if (chunk.header.base_size != chunk.header.comp_size) {
-            // Data is compressed, decompress it
-            decompressed = decompress_data(
-                chunk.data.data(),
-                chunk.header.comp_size,
-                chunk.header.base_size
-            );
-        } else {
-            // Data is not compressed (from archive())
-            decompressed = chunk.data;
-        }
-
-        // Write to file
-        std::ofstream out(output_file, std::ios::binary);
-        if (!out.is_open()) {
-            std::cerr << "Failed to create: " << output_file << std::endl;
-            continue;
-        }
-
-        out.write(decompressed.data(), decompressed.size());
-        out.close();
-
-        std::cout << "Extracted: " << output_file << " (" << decompressed.size() << " bytes)" << std::endl;
-    }
-
-    std::cout << "Decompression complete!" << std::endl;
-}
-
-void Packr::unarchive(std::string& in_path, std::string& out_path) {
-    // Open existing .packr file
-    PackrFile packr_file(in_path, false);
-
-    // Create output directory if it doesn't exist
-    std::filesystem::create_directories(out_path);
-
-    // Get all chunks from the packr file
-    const auto& chunks = packr_file.get_chunks();
-
-    std::cout << "Unarchiving " << chunks.size() << " files..." << std::endl;
-
-    for (const auto& chunk : chunks) {
-        // Get the original filename from alias
-        std::string alias(chunk.header.alias);
-        
-        // Extract just the filename (remove any path prefix)
-        std::filesystem::path relative_path(alias);
-
-        // If alias is absolute, strip root to avoid writing outside out_path
-        if (relative_path.is_absolute()) {
-            relative_path = relative_path.lexically_relative(
-                relative_path.root_path());
-        }
-
-        std::filesystem::path output_file =
-            std::filesystem::path(out_path) / relative_path;
-
-
-        // Create parent directories if needed
-        std::filesystem::create_directories(output_file.parent_path());
-
-        // Write data directly (no decompression needed for archived files)
-        std::ofstream out(output_file, std::ios::binary);
-        if (!out.is_open()) {
-            std::cerr << "Failed to create: " << output_file << std::endl;
-            continue;
-        }
-
-        out.write(chunk.data.data(), chunk.header.base_size);
-        out.close();
-
-        std::cout << "Extracted: " << output_file << " (" << chunk.header.base_size << " bytes)" << std::endl;
-    }
-
-    std::cout << "Unarchive complete!" << std::endl;
-}
-
 void Packr::archive(std::string& in_path, std::string& out_path) {
     // First load directories recursively
     std::vector<std::string> files;
@@ -510,6 +400,117 @@ void Packr::compress_parallel(std::string& in_path,
     // Write to disk
     file.flush();
 }
+
+void Packr::decompress(std::string& in_path, std::string& out_path) {
+    // Open existing .packr file
+    PackrFile packr_file(in_path, false);
+
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories(out_path);
+
+    // Get all chunks from the packr file
+    const auto& chunks = packr_file.get_chunks();
+
+    std::cout << "Decompressing " << chunks.size() << " files..." << std::endl;
+
+    for (const auto& chunk : chunks) {
+        // Get the original filename from alias
+        std::string alias(chunk.header.alias);
+
+        // Extract just the filename (remove any path prefix)
+        std::filesystem::path relative_path(alias);
+
+        // If alias is absolute, strip root to avoid writing outside out_path
+        if (relative_path.is_absolute()) {
+            relative_path = relative_path.lexically_relative(
+                relative_path.root_path());
+        }
+
+        std::filesystem::path output_file =
+            std::filesystem::path(out_path) / relative_path;
+
+
+        // Create parent directories if needed
+        std::filesystem::create_directories(output_file.parent_path());
+
+        // Decompress the data
+        std::vector<char> decompressed;
+        if (chunk.header.base_size != chunk.header.comp_size) {
+            // Data is compressed, decompress it
+            decompressed = decompress_data(
+                chunk.data.data(),
+                chunk.header.comp_size,
+                chunk.header.base_size
+            );
+        } else {
+            // Data is not compressed (from archive())
+            decompressed = chunk.data;
+        }
+
+        // Write to file
+        std::ofstream out(output_file, std::ios::binary);
+        if (!out.is_open()) {
+            std::cerr << "Failed to create: " << output_file << std::endl;
+            continue;
+        }
+
+        out.write(decompressed.data(), decompressed.size());
+        out.close();
+
+        std::cout << "Extracted: " << output_file << " (" << decompressed.size() << " bytes)" << std::endl;
+    }
+
+    std::cout << "Decompression complete!" << std::endl;
+}
+
+void Packr::unarchive(std::string& in_path, std::string& out_path) {
+    // Open existing .packr file
+    PackrFile packr_file(in_path, false);
+
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories(out_path);
+
+    // Get all chunks from the packr file
+    const auto& chunks = packr_file.get_chunks();
+
+    std::cout << "Unarchiving " << chunks.size() << " files..." << std::endl;
+
+    for (const auto& chunk : chunks) {
+        // Get the original filename from alias
+        std::string alias(chunk.header.alias);
+
+        // Extract just the filename (remove any path prefix)
+        std::filesystem::path relative_path(alias);
+
+        // If alias is absolute, strip root to avoid writing outside out_path
+        if (relative_path.is_absolute()) {
+            relative_path = relative_path.lexically_relative(
+                relative_path.root_path());
+        }
+
+        std::filesystem::path output_file =
+            std::filesystem::path(out_path) / relative_path;
+
+
+        // Create parent directories if needed
+        std::filesystem::create_directories(output_file.parent_path());
+
+        // Write data directly (no decompression needed for archived files)
+        std::ofstream out(output_file, std::ios::binary);
+        if (!out.is_open()) {
+            std::cerr << "Failed to create: " << output_file << std::endl;
+            continue;
+        }
+
+        out.write(chunk.data.data(), chunk.header.base_size);
+        out.close();
+
+        std::cout << "Extracted: " << output_file << " (" << chunk.header.base_size << " bytes)" << std::endl;
+    }
+
+    std::cout << "Unarchive complete!" << std::endl;
+}
+
 
 void Packr::decompress_parallel(std::string& in_path,
                                 std::string& out_path,
