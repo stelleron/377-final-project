@@ -49,7 +49,16 @@ int main() {
     std::string out_decomp_p5_path = "test/decompressed_p5";
     std::string out_decomp_p10_path = "test/decompressed_p10";
 
-    Packr::decompress(out_comp_path, out_decomp_seq_path);
-    Packr::decompress(out_comp_path, out_decomp_p5_path);
-    Packr::decompress(out_comp_path, out_decomp_p10_path);
+    time_run([&] {
+        Packr::decompress(seq_path, out_decomp_seq_path);
+    }, "Sequential");
+
+    time_run([&] {
+        Packr::decompress_parallel(p5_path, out_decomp_p5_path, 5);
+    }, "Parallel (5 threads)");
+
+    time_run([&] {
+        Packr::decompress_parallel(p10_path, out_decomp_p10_path, 10);
+    }, "Parallel (10 threads)");
+
 }
