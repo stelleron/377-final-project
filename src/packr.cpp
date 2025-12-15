@@ -510,3 +510,93 @@ void Packr::compress_parallel(std::string& in_path,
     // Write to disk
     file.flush();
 }
+
+void Packr::decompress_parallel(std::string& in_path,
+                                std::string& out_path,
+                                int num_threads) {
+    // Open existing .packr file
+    PackrFile packr_file(in_path, false);
+
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories(out_path);
+
+    // Get all chunks from the packr file
+    const auto& chunks = packr_file.get_chunks();
+
+    std::cout << "Decompressing " << chunks.size() << " files with " 
+              << num_threads << " threads..." << std::endl;
+
+    // Create a queue of chunk indices to process
+    std::queue<size_t> work_queue;
+    for (size_t i = 0; i < chunks.size(); i++) {
+        work_queue.push(i);
+    }
+
+    // Mutex for queue access
+    std::mutex queue_mutex;
+
+    // Worker function
+    auto worker = [&]() {
+        while (true) {
+            size_t chunk_idx;
+
+            // (CRITICAL) Get next chunk index from queue
+            {
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                if (work_queue.empty())
+                    return;
+                chunk_idx = work_queue.front();
+                work_queue.pop();
+            }
+
+            const auto& chunk = chunks[chunk_idx];
+
+            // Get the original filename from alias
+            std::string alias(chunk.header.alias);
+            
+            // Extract just the filename (remove any path prefix)
+            std::filesystem::path original_path(alias);
+            std::string filename = original_path.filename().string();
+
+            // Build output path
+            std::filesystem::path output_file = std::filesystem::path(out_path) / filename;
+
+            // Decompress the data
+            std::vector<char> decompressed;
+            if (chunk.header.base_size != chunk.header.comp_size) {
+                // Data is compressed, decompress it
+                decompressed = decompress_data(
+                    chunk.data.data(),
+                    chunk.header.comp_size,
+                    chunk.header.base_size
+                );
+            } else {
+                // Data is not compressed (from archive())
+                decompressed = chunk.data;
+            }
+
+            // Write to file (file I/O is thread-safe for different files)
+            std::ofstream out(output_file, std::ios::binary);
+            if (!out.is_open()) {
+                std::cerr << "Failed to create: " << output_file << std::endl;
+                continue;
+            }
+
+            out.write(decompressed.data(), decompressed.size());
+            out.close();
+        }
+    };
+
+    // Spawn all threads
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; i++) {
+        threads.emplace_back(worker);
+    }
+
+    // Join all threads
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    std::cout << "Parallel decompression complete!" << std::endl;
+}

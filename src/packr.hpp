@@ -54,5 +54,6 @@
 
             // Multiple threads
             static void compress_parallel(std::string& in_path, std::string& out_path, int num_threads);
+            static void decompress_parallel(std::string& in_path, std::string& out_path, int num_threads);
     };
 #endif
